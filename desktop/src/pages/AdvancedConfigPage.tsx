@@ -49,30 +49,26 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
   }, [t])
 
   useEffect(() => {
-    if (serverRunning) {
-      return
-    }
-
-    setLoading(false)
-    setConfigPath('')
-    setRows([])
-    setProxy(DEFAULT_PROXY_SETTINGS)
-    setSaveMessage('')
-    setError(t('advancedConfig.serverRequired'))
-  }, [serverRunning, t])
-
-  useEffect(() => {
-    if (!serverRunning) {
-      return
-    }
-
     let cancelled = false
 
-    const loadModelMappings = async () => {
+    const loadAdvancedConfig = async () => {
       setLoading(true)
       setError('')
 
       try {
+        const proxyResult = await window.electronAPI.getProxyConfig()
+        if (cancelled) {
+          return
+        }
+
+        setConfigPath(proxyResult.configPath)
+        setProxy(proxyResult.proxy ?? DEFAULT_PROXY_SETTINGS)
+
+        if (!serverRunning) {
+          setRows([])
+          return
+        }
+
         const result = await window.electronAPI.getModelMappingsConfig()
         if (cancelled) {
           return
@@ -80,7 +76,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
 
         setConfigPath(result.configPath)
         setRows(toRows(result.modelMappings))
-        setProxy(result.proxy ?? DEFAULT_PROXY_SETTINGS)
+        setProxy(result.proxy ?? proxyResult.proxy ?? DEFAULT_PROXY_SETTINGS)
       } catch (err) {
         if (cancelled) {
           return
@@ -96,7 +92,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
       }
     }
 
-    void loadModelMappings()
+    void loadAdvancedConfig()
 
     return () => {
       cancelled = true
@@ -173,17 +169,24 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
       return
     }
 
-    const nextModelMappings = buildModelMappings()
-    if (!nextModelMappings) {
+    const nextModelMappings = serverRunning ? buildModelMappings() : null
+    if (serverRunning && !nextModelMappings) {
       return
     }
 
     setSaving(true)
     try {
-      await window.electronAPI.saveModelMappings(nextModelMappings, nextProxy)
-      setRows(toRows(nextModelMappings))
-      setProxy(nextProxy)
-      setSaveMessage(t('advancedConfig.saved'))
+      if (serverRunning) {
+        await window.electronAPI.saveModelMappings(nextModelMappings!, nextProxy)
+        setRows(toRows(nextModelMappings!))
+        setProxy(nextProxy)
+        setSaveMessage(t('advancedConfig.saved'))
+      } else {
+        const result = await window.electronAPI.saveProxyConfig(nextProxy)
+        setConfigPath(result.configPath)
+        setProxy(result.proxy ?? nextProxy)
+        setSaveMessage(t('advancedConfig.proxySaved'))
+      }
     } catch (err) {
       setError(`${t('advancedConfig.saveFailed')}: ${(err as Error).message}`)
     } finally {
@@ -244,7 +247,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
               <input
                 type="checkbox"
                 checked={proxy.enabled}
-                disabled={!serverRunning || loading}
+                disabled={loading}
                 onChange={(event) =>
                   handleProxyChange({ ...proxy, enabled: event.target.checked })
                 }
@@ -262,7 +265,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
               <input
                 type="text"
                 value={proxy.url}
-                disabled={!serverRunning || loading}
+                disabled={loading}
                 onChange={(event) =>
                   handleProxyChange({ ...proxy, url: event.target.value })
                 }
@@ -294,7 +297,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
 
             <button
               onClick={handleAddRow}
-              disabled={!serverRunning}
+              disabled={!serverRunning || loading}
               className="inline-flex items-center justify-center rounded-xl bg-[#0f172a] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {t('advancedConfig.addMapping')}
@@ -328,6 +331,10 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
             {loading ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-[13px] text-slate-400">
                 {t('dashboard.loading')}
+              </div>
+            ) : !serverRunning ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-[13px] text-slate-500">
+                {t('advancedConfig.serverRequired')}
               </div>
             ) : rows.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
@@ -392,7 +399,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
           </p>
           <button
             onClick={handleSave}
-            disabled={!serverRunning || loading || saving}
+            disabled={loading || saving}
             className="inline-flex items-center justify-center rounded-xl bg-[#0f172a] px-5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {saving ? t('settings.saving') : t('settings.save')}

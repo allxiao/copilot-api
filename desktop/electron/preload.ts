@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   getSettings: () => ipcRenderer.invoke('settings:get'),
   saveSettings: (settings: unknown) => ipcRenderer.invoke('settings:save', settings),
+  getProxyConfig: () => ipcRenderer.invoke('config:get-proxy'),
+  saveProxyConfig: (proxy: unknown) => ipcRenderer.invoke('config:save-proxy', proxy),
   getModelMappingsConfig: () => ipcRenderer.invoke('config:get-model-mappings'),
   saveModelMappings: (modelMappings: Record<string, string>, proxy?: unknown) =>
     ipcRenderer.invoke('config:save-model-mappings', modelMappings, proxy),
