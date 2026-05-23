@@ -6,10 +6,10 @@ import consola from "consola"
 import { serve, type ServerHandler } from "srvx"
 import invariant from "tiny-invariant"
 
-import { mergeConfigWithDefaults } from "./lib/config"
+import { getProxyConfig, mergeConfigWithDefaults } from "./lib/config"
 import { initOpencodeVersion } from "./lib/opencode"
 import { ensurePaths } from "./lib/paths"
-import { initProxyFromEnv } from "./lib/proxy"
+import { initConfiguredProxy, initProxyFromEnv } from "./lib/proxy"
 import { generateEnvScript } from "./lib/shell"
 import { state } from "./lib/state"
 import { logUser, setupCopilotToken, setupGitHubToken } from "./lib/token"
@@ -46,6 +46,7 @@ export async function runServer(options: RunServerOptions): Promise<void> {
   if (options.proxyEnv) {
     initProxyFromEnv()
   }
+  initConfiguredProxy(getProxyConfig())
 
   state.verbose = options.verbose
   if (options.verbose) {

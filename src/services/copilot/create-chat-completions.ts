@@ -13,6 +13,7 @@ import {
 import { logCopilotRateLimits } from "~/lib/copilot-rate-limit"
 import { HTTPError } from "~/lib/error"
 import { state } from "~/lib/state"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export const createChatCompletions = async (
   payload: ChatCompletionsPayload,
@@ -58,11 +59,14 @@ export const createChatCompletions = async (
 
   consola.log(`<-- model: ${payload.model}`)
 
-  const response = await fetch(`${copilotBaseUrl(state)}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  })
+  const response = await copilotFetch(
+    `${copilotBaseUrl(state)}/chat/completions`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    },
+  )
 
   logCopilotRateLimits(response.headers)
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { useLanguage } from '../contexts/LanguageContext'
+import type { ProxySettings } from '../types/ipc'
 
 interface AdvancedConfigPageProps {
   onBack: () => void
@@ -21,6 +22,11 @@ function createModelMappingRow(source = '', target = ''): ModelMappingRow {
   }
 }
 
+const DEFAULT_PROXY_SETTINGS: ProxySettings = {
+  enabled: false,
+  url: '',
+}
+
 function toRows(modelMappings: Record<string, string>): ModelMappingRow[] {
   return Object.entries(modelMappings).map(([source, target]) =>
     createModelMappingRow(source, target),
@@ -32,6 +38,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
   const translationRef = useRef(t)
   const [configPath, setConfigPath] = useState('')
   const [rows, setRows] = useState<ModelMappingRow[]>([])
+  const [proxy, setProxy] = useState<ProxySettings>(DEFAULT_PROXY_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -49,6 +56,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
     setLoading(false)
     setConfigPath('')
     setRows([])
+    setProxy(DEFAULT_PROXY_SETTINGS)
     setSaveMessage('')
     setError(t('advancedConfig.serverRequired'))
   }, [serverRunning, t])
@@ -72,6 +80,7 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
 
         setConfigPath(result.configPath)
         setRows(toRows(result.modelMappings))
+        setProxy(result.proxy ?? DEFAULT_PROXY_SETTINGS)
       } catch (err) {
         if (cancelled) {
           return
@@ -104,6 +113,12 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
         row.id === id ? { ...row, [field]: value } : row,
       ),
     )
+    setError('')
+    setSaveMessage('')
+  }
+
+  const handleProxyChange = (nextProxy: ProxySettings) => {
+    setProxy(nextProxy)
     setError('')
     setSaveMessage('')
   }
@@ -148,6 +163,16 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
     setError('')
     setSaveMessage('')
 
+    const nextProxy = {
+      enabled: proxy.enabled,
+      url: proxy.url.trim(),
+    }
+
+    if (nextProxy.enabled && !nextProxy.url) {
+      setError(t('advancedConfig.proxyValidationRequired'))
+      return
+    }
+
     const nextModelMappings = buildModelMappings()
     if (!nextModelMappings) {
       return
@@ -155,8 +180,9 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
 
     setSaving(true)
     try {
-      await window.electronAPI.saveModelMappings(nextModelMappings)
+      await window.electronAPI.saveModelMappings(nextModelMappings, nextProxy)
       setRows(toRows(nextModelMappings))
+      setProxy(nextProxy)
       setSaveMessage(t('advancedConfig.saved'))
     } catch (err) {
       setError(`${t('advancedConfig.saveFailed')}: ${(err as Error).message}`)
@@ -203,6 +229,58 @@ export default function AdvancedConfigPage({ onBack, serverRunning }: AdvancedCo
           </div>
         )}
 
+        <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="space-y-1.5">
+              <h2 className="text-[16px] font-semibold text-[#0f172a]">
+                {t('advancedConfig.proxyTitle')}
+              </h2>
+              <p className="max-w-3xl text-[13px] leading-relaxed text-slate-500">
+                {t('advancedConfig.proxyDesc')}
+              </p>
+            </div>
+
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-medium text-slate-600">
+              <input
+                type="checkbox"
+                checked={proxy.enabled}
+                disabled={!serverRunning || loading}
+                onChange={(event) =>
+                  handleProxyChange({ ...proxy, enabled: event.target.checked })
+                }
+                className="h-4 w-4 rounded border-slate-300 text-[#0f172a] focus:ring-slate-300"
+              />
+              {t('advancedConfig.proxyEnabled')}
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.5fr)]">
+            <label className="block">
+              <div className="mb-1.5 text-[12px] font-medium text-slate-500">
+                {t('advancedConfig.proxyUrl')}
+              </div>
+              <input
+                type="text"
+                value={proxy.url}
+                disabled={!serverRunning || loading}
+                onChange={(event) =>
+                  handleProxyChange({ ...proxy, url: event.target.value })
+                }
+                placeholder="socks5://127.0.0.1:1080"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[13px] text-[#0f172a] placeholder-slate-300 transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                {t('advancedConfig.proxyProtocols')}
+              </div>
+              <p className="mt-2 text-[13px] leading-relaxed text-slate-600">
+                {t('advancedConfig.proxyProtocolsDesc')}
+              </p>
+            </div>
+          </div>
+        </div>
         <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-1.5">

@@ -3,10 +3,11 @@ import consola from "consola"
 import { copilotBaseUrl, copilotModelsHeaders } from "~/lib/api-config"
 import { HTTPError } from "~/lib/error"
 import { state } from "~/lib/state"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export const getModels = async () => {
   consola.info(`Fetching models from ${copilotBaseUrl(state)}/models`)
-  const response = await fetch(`${copilotBaseUrl(state)}/models`, {
+  const response = await copilotFetch(`${copilotBaseUrl(state)}/models`, {
     headers: copilotModelsHeaders(state),
   })
 

@@ -132,19 +132,50 @@ class MockProxyAgent extends MockAgent {
   }
 }
 
+const createFetchResponsesResult = (model: string): ResponsesResult => ({
+  created_at: 0,
+  error: null,
+  id: "resp-fetch-test",
+  incomplete_details: null,
+  instructions: null,
+  metadata: null,
+  model,
+  object: "response",
+  output: [],
+  output_text: "",
+  parallel_tool_calls: false,
+  status: "completed",
+  temperature: null,
+  tool_choice: "auto",
+  tools: [],
+  top_p: null,
+  usage: null,
+})
+
 const setGlobalDispatcherMock = mock((_dispatcher: unknown) => {})
+const undiciFetchMock = mock(
+  (_input: string | URL | Request, _init?: RequestInit) =>
+    Promise.resolve(
+      new Response(JSON.stringify(createFetchResponsesResult("gpt-test"))),
+    ),
+)
 
 await mock.module("undici", () => ({
   Agent: MockAgent,
+  fetch: undiciFetchMock,
   ProxyAgent: MockProxyAgent,
   setGlobalDispatcher: setGlobalDispatcherMock,
   WebSocket: MockWebSocket,
 }))
 
 const { state } = await import("../src/lib/state")
-const { getProxyEnvDispatcher, initProxyFromEnv } = await import(
-  "../src/lib/proxy"
-)
+const {
+  getCopilotProxyDispatcher,
+  getProxyEnvDispatcher,
+  initConfiguredProxy,
+  initProxyFromEnv,
+  resetProxyForTests,
+} = await import("../src/lib/proxy")
 const { createResponses } = await import(
   "../src/services/copilot/create-responses"
 )
@@ -186,6 +217,7 @@ beforeEach(() => {
   MockWebSocket.failOpen = false
   MockWebSocket.failOpenEvent = null
   MockWebSocket.instances = []
+  undiciFetchMock.mockClear()
   state.accountType = "individual"
   state.copilotApiUrl = "https://api.githubcopilot.com"
   state.copilotToken = "test-token"
@@ -212,6 +244,7 @@ afterEach(() => {
   ).clearTimeout = originalClearTimeout
   ;(globalThis as unknown as { setTimeout: typeof setTimeout }).setTimeout =
     originalSetTimeout
+  resetProxyForTests()
 })
 
 test("Responses websocket pool reuses the same connection for matching pool keys", async () => {
@@ -558,6 +591,47 @@ test("Responses websocket emits an error event when the websocket closes without
   expect(chunks[0]?.data).toContain(
     '"message":"Responses websocket ended without a terminal response"',
   )
+})
+
+test("Responses HTTP uses the configured Copilot proxy dispatcher", async () => {
+  initConfiguredProxy({
+    enabled: true,
+    url: "http://127.0.0.1:8080",
+  })
+  const dispatcher = getCopilotProxyDispatcher()
+
+  await createResponses(
+    {
+      input: "hello",
+      model: "gpt-test",
+      stream: false,
+    },
+    {
+      initiator: "user",
+      requestId: "configured-http-proxy-request",
+      transport: "http",
+      vision: false,
+    },
+  )
+
+  expect(undiciFetchMock).toHaveBeenCalledTimes(1)
+  const init = undiciFetchMock.mock.calls[0]?.[1] as
+    | { dispatcher?: unknown }
+    | undefined
+  expect(init?.dispatcher).toBe(dispatcher)
+})
+
+test("Responses websocket uses the configured Copilot proxy dispatcher", async () => {
+  initConfiguredProxy({
+    enabled: true,
+    url: "socks5://127.0.0.1:1080",
+  })
+  const dispatcher = getCopilotProxyDispatcher()
+
+  await collectResponsesStream("configured-proxy-request")
+
+  expect(dispatcher).toBeDefined()
+  expect(MockWebSocket.instances[0]?.init.dispatcher).toBe(dispatcher)
 })
 
 test("Responses websocket uses the proxy-env dispatcher when initialized", async () => {
