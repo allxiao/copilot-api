@@ -208,7 +208,6 @@ function createWindow(): BrowserWindow {
   win.removeMenu()
 
   mainWindow = win
-  win.maximize()
 
   win.once('ready-to-show', () => win.show())
 
