@@ -4,6 +4,7 @@ import { getOauthAppConfig, getOauthUrls } from "~/lib/api-config"
 import { sleep } from "~/lib/utils"
 
 import type { DeviceCodeResponse } from "./get-device-code"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export async function pollAccessToken(
   deviceCode: DeviceCodeResponse,
@@ -17,7 +18,7 @@ export async function pollAccessToken(
   consola.debug(`Polling access token with interval of ${sleepDuration}ms`)
 
   while (true) {
-    const response = await fetch(accessTokenUrl, {
+    const response = await copilotFetch(accessTokenUrl, {
       method: "POST",
       headers,
       body: JSON.stringify({

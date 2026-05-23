@@ -125,6 +125,13 @@ export interface Locale {
     title: string
     subtitle: string
     back: string
+    proxyTitle: string
+    proxyDesc: string
+    proxyEnabled: string
+    proxyUrl: string
+    proxyProtocols: string
+    proxyProtocolsDesc: string
+    proxyValidationRequired: string
     modelMappingsTitle: string
     modelMappingsDesc: string
     scopeLabel: string

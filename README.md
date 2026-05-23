@@ -368,6 +368,12 @@ npx @jeffreycao/copilot-api@latest check-usage
 # Print debug information as JSON
 npx @jeffreycao/copilot-api@latest debug --json
 
+# Initialize proxy from environment variables (HTTP_PROXY, HTTPS_PROXY, etc.)
+npx @jeffreycao/copilot-api@latest start --proxy-env
+
+# Or configure GitHub/Copilot upstream proxy in config.json
+# "proxy": { "enabled": true, "url": "socks5://127.0.0.1:1080" }
+
 # Run the published CLI with Bun instead of Node.js
 bunx --bun @jeffreycao/copilot-api@latest start
 ```

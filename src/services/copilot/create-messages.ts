@@ -19,6 +19,7 @@ import { logCopilotRateLimits } from "~/lib/copilot-rate-limit"
 import { HTTPError } from "~/lib/error"
 import { state } from "~/lib/state"
 import { parseUserIdMetadata } from "~/lib/utils"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export type MessagesStream = ReturnType<typeof events>
 export type CreateMessagesReturn = AnthropicResponse | MessagesStream
@@ -127,7 +128,7 @@ export const createMessages = async (
 
   consola.log(`<-- model: ${payload.model}`)
 
-  const response = await fetch(`${copilotBaseUrl(state)}/v1/messages`, {
+  const response = await copilotFetch(`${copilotBaseUrl(state)}/v1/messages`, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),

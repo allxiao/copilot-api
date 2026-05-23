@@ -1,8 +1,9 @@
-import { WebSocket } from "undici"
+import { WebSocket, type Dispatcher } from "undici"
 
 import { getProxyEnvDispatcher } from "~/lib/proxy"
 
 export interface PooledWebSocketRequest<TPayload> {
+  dispatcher?: Dispatcher
   headers: Record<string, string>
   payload: TPayload
   poolKey: string
@@ -134,6 +135,7 @@ const createPooledWebSocketEntry = <TPayload, TChunk>(
     idleTimer: null,
     requestCount: 0,
     websocketPromise: openWebSocket({
+      dispatcher: request.dispatcher,
       headers: request.headers,
       openErrorMessage: options.openErrorMessage,
       url: request.url,
@@ -296,16 +298,18 @@ const createWebSocketError = (
 }
 
 const openWebSocket = async ({
+  dispatcher: requestDispatcher,
   headers,
   openErrorMessage,
   url,
 }: {
+  dispatcher?: Dispatcher
   headers: Record<string, string>
   openErrorMessage: string
   url: string
 }): Promise<InstanceType<typeof WebSocket>> =>
   await new Promise((resolve, reject) => {
-    const dispatcher = getProxyEnvDispatcher()
+    const dispatcher = requestDispatcher ?? getProxyEnvDispatcher()
     const init = dispatcher ? { dispatcher, headers } : { headers }
     const websocket = new WebSocket(url, init)
 

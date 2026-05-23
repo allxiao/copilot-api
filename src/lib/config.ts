@@ -9,6 +9,7 @@ export interface AppConfig {
     apiKeys?: Array<string>
     adminApiKey?: string
   }
+  proxy?: ProxyConfig
   providers?: Record<string, ProviderConfig>
   modelMappings?: Record<string, string>
   extraPrompts?: Record<string, string>
@@ -24,6 +25,13 @@ export interface AppConfig {
   useResponsesApiWebSearch?: boolean
   claudeTokenMultiplier?: number
 }
+
+export type ProxyConfig =
+  | string
+  | {
+      enabled?: boolean
+      url?: string
+    }
 
 export interface ModelConfig {
   temperature?: number
@@ -92,6 +100,10 @@ You interact with the user through a terminal. You have 2 ways of communicating 
 const defaultConfig: AppConfig = {
   auth: {
     apiKeys: [],
+  },
+  proxy: {
+    enabled: false,
+    url: "",
   },
   providers: {},
   modelMappings: {},
@@ -325,6 +337,22 @@ export function reloadConfig(): AppConfig {
 export function getExtraPromptForModel(model: string): string {
   const config = getConfig()
   return config.extraPrompts?.[model] ?? ""
+}
+
+export function getProxyConfig(): ProxyConfig | undefined {
+  const config = getConfig()
+  return config.proxy
+}
+
+export function setProxyConfig(proxy: ProxyConfig): ProxyConfig | undefined {
+  const nextConfig = {
+    ...readEditableConfigFromDisk(),
+    proxy,
+  }
+
+  writeConfigToDisk(nextConfig)
+  cachedConfig = reloadConfig()
+  return getProxyConfig()
 }
 
 export function getModelMappings(): Record<string, string> {

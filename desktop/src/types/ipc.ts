@@ -26,9 +26,15 @@ export interface ServerAuthInfo {
   headerValue?: string
 }
 
+export interface ProxySettings {
+  enabled: boolean
+  url: string
+}
+
 export interface ModelMappingsConfig {
   configPath: string
   modelMappings: Record<string, string>
+  proxy: ProxySettings
 }
 
 export type TokenUsagePeriod = 'day' | 'week' | 'month'
@@ -137,7 +143,10 @@ declare global {
       getSettings: () => Promise<DesktopSettings>
       saveSettings: (settings: DesktopSettings) => Promise<void>
       getModelMappingsConfig: () => Promise<ModelMappingsConfig>
-      saveModelMappings: (modelMappings: Record<string, string>) => Promise<void>
+      saveModelMappings: (
+        modelMappings: Record<string, string>,
+        proxy?: ProxySettings
+      ) => Promise<void>
       openUrl: (url: string) => Promise<void>
       fetchUsage: () => Promise<unknown>
       fetchModels: () => Promise<unknown>
