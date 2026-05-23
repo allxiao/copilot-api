@@ -37,6 +37,11 @@ export interface ModelMappingsConfig {
   proxy: ProxySettings
 }
 
+export interface ProxySettingsConfig {
+  configPath: string
+  proxy: ProxySettings
+}
+
 export type TokenUsagePeriod = 'day' | 'week' | 'month'
 
 export interface TokenUsageTotals {
@@ -142,6 +147,8 @@ declare global {
       stopServer: () => Promise<void>
       getSettings: () => Promise<DesktopSettings>
       saveSettings: (settings: DesktopSettings) => Promise<void>
+      getProxyConfig: () => Promise<ProxySettingsConfig>
+      saveProxyConfig: (proxy: ProxySettings) => Promise<ProxySettingsConfig>
       getModelMappingsConfig: () => Promise<ModelMappingsConfig>
       saveModelMappings: (
         modelMappings: Record<string, string>,

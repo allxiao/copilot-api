@@ -146,6 +146,7 @@ export interface Locale {
     emptyDescription: string
     saveHelp: string
     saved: string
+    proxySaved: string
     loadFailed: string
     saveFailed: string
     serverRequired: string
