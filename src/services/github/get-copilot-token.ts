@@ -3,9 +3,10 @@ import consola from "consola"
 import { getGitHubApiBaseUrl, githubHeaders } from "~/lib/api-config"
 import { HTTPError } from "~/lib/error"
 import { state } from "~/lib/state"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export const getCopilotToken = async () => {
-  const response = await fetch(
+  const response = await copilotFetch(
     `${getGitHubApiBaseUrl()}/copilot_internal/v2/token`,
     {
       headers: githubHeaders(state),

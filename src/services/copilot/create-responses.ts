@@ -19,8 +19,9 @@ import {
   type CopilotQuotaSnapshot,
 } from "~/lib/copilot-rate-limit"
 import { HTTPError } from "~/lib/error"
-import { getProxyEnvDispatcher } from "~/lib/proxy"
+import { getCopilotProxyDispatcher } from "~/lib/proxy"
 import { state } from "~/lib/state"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export interface ResponsesPayload {
   model: string
@@ -501,7 +502,7 @@ const createHttpResponses = async (
   payload: ResponsesPayload,
   headers: Record<string, string>,
 ): Promise<CreateResponsesReturn> => {
-  const response = await fetch(`${copilotBaseUrl(state)}/responses`, {
+  const response = await copilotFetch(`${copilotBaseUrl(state)}/responses`, {
     method: "POST",
     headers,
     body: JSON.stringify(payload),
@@ -880,7 +881,7 @@ const openResponsesWebSocket = async ({
   url: string
 }): Promise<InstanceType<typeof WebSocket>> =>
   await new Promise((resolve, reject) => {
-    const dispatcher = getProxyEnvDispatcher()
+    const dispatcher = getCopilotProxyDispatcher()
     const init = dispatcher ? { dispatcher, headers } : { headers }
     const websocket = new WebSocket(url, init)
 

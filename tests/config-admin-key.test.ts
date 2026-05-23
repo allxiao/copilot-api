@@ -10,6 +10,12 @@ interface ConfigFileShape {
     adminApiKey?: string
   }
   modelMappings?: Record<string, string>
+  proxy?:
+    | string
+    | {
+        enabled?: boolean
+        url?: string
+      }
 }
 
 const cwd = fileURLToPath(new URL("../", import.meta.url))
@@ -26,7 +32,7 @@ function createTempConfigDir(): string {
 
 function writeConfigFile(tempDir: string, config: ConfigFileShape): string {
   const configPath = path.join(tempDir, "config.json")
-  fs.writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8")
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n", "utf8")
   return configPath
 }
 
@@ -50,7 +56,12 @@ function runConfigScript(tempDir: string, script: string): void {
     const stdout = decoder.decode(result.stdout)
     const stderr = decoder.decode(result.stderr)
     throw new Error(
-      `Config script failed with exit code ${result.exitCode}\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+      "Config script failed with exit code "
+        + result.exitCode
+        + "\nstdout:\n"
+        + stdout
+        + "\nstderr:\n"
+        + stderr,
     )
   }
 }
@@ -163,6 +174,62 @@ describe("config admin api key", () => {
     expect(config.auth?.adminApiKey).not.toBe(generatedAdminApiKey)
     expect(config.modelMappings).toEqual({
       "claude-opus-4-7": "gpt-5-mini",
+    })
+  })
+
+  test("preserves existing proxy config when model mappings are updated", () => {
+    const tempDir = createTempConfigDir()
+    const configPath = writeConfigFile(tempDir, {
+      auth: {
+        apiKeys: ["regular-key"],
+      },
+      proxy: {
+        enabled: true,
+        url: "http://127.0.0.1:8080",
+      },
+    })
+
+    runConfigScript(
+      tempDir,
+      'const { mergeConfigWithDefaults, setModelMappings } = await import("./src/lib/config"); mergeConfigWithDefaults(); setModelMappings({ "claude-opus-4-7": "dash/qwen-plus" });',
+    )
+
+    const config = readConfigFile(configPath)
+    expect(config.proxy).toEqual({
+      enabled: true,
+      url: "http://127.0.0.1:8080",
+    })
+    expect(config.modelMappings).toEqual({
+      "claude-opus-4-7": "dash/qwen-plus",
+    })
+    expect(config.auth?.adminApiKey?.length).toBeGreaterThan(0)
+  })
+
+  test("preserves existing config when proxy settings are updated", () => {
+    const tempDir = createTempConfigDir()
+    const configPath = writeConfigFile(tempDir, {
+      auth: {
+        apiKeys: ["regular-key"],
+      },
+      modelMappings: {
+        "claude-opus-4-7": "gpt-5-mini",
+      },
+    })
+
+    runConfigScript(
+      tempDir,
+      'const { mergeConfigWithDefaults, setProxyConfig } = await import("./src/lib/config"); mergeConfigWithDefaults(); setProxyConfig({ enabled: true, url: "socks5://127.0.0.1:1080" });',
+    )
+
+    const config = readConfigFile(configPath)
+    expect(config.auth?.apiKeys).toEqual(["regular-key"])
+    expect(config.auth?.adminApiKey?.length).toBeGreaterThan(0)
+    expect(config.modelMappings).toEqual({
+      "claude-opus-4-7": "gpt-5-mini",
+    })
+    expect(config.proxy).toEqual({
+      enabled: true,
+      url: "socks5://127.0.0.1:1080",
     })
   })
 })

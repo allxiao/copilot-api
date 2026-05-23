@@ -11,6 +11,7 @@ import { readSettings, writeSettings } from './settings-store'
 import type {
   DesktopSettings,
   ModelMappingsConfig,
+  ProxySettings,
   ServerAuthInfo,
 } from '../src/types/ipc'
 
@@ -98,6 +99,7 @@ async function fetchModelMappingsConfig(): Promise<ModelMappingsConfig> {
 
 async function saveModelMappingsViaApi(
   modelMappings: Record<string, string>,
+  proxy?: ProxySettings,
 ): Promise<void> {
   const headers = await getServerRequestHeaders('admin')
   const response = await fetch(getConfigApiBaseUrl(), {
@@ -106,7 +108,7 @@ async function saveModelMappingsViaApi(
       'content-type': 'application/json',
       ...headers,
     },
-    body: JSON.stringify({ modelMappings }),
+    body: JSON.stringify(proxy ? { modelMappings, proxy } : { modelMappings }),
     signal: AbortSignal.timeout(5000),
   })
   if (!response.ok) {
@@ -220,8 +222,8 @@ export function registerIpcHandlers(
     }
   })
   ipcMain.handle('config:get-model-mappings', async () => fetchModelMappingsConfig())
-  ipcMain.handle('config:save-model-mappings', async (_event, modelMappings: Record<string, string>) => {
-    await saveModelMappingsViaApi(modelMappings)
+  ipcMain.handle('config:save-model-mappings', async (_event, modelMappings: Record<string, string>, proxy?: ProxySettings) => {
+    await saveModelMappingsViaApi(modelMappings, proxy)
   })
 
   // Shell: Open the system browser

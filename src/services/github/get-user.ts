@@ -1,6 +1,7 @@
 import { getGitHubApiBaseUrl, githubUserHeaders } from "~/lib/api-config"
 import { HTTPError } from "~/lib/error"
 import { state } from "~/lib/state"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export async function getGitHubUser(githubToken?: string) {
   const resolvedGithubToken = githubToken ?? state.githubToken
@@ -9,7 +10,7 @@ export async function getGitHubUser(githubToken?: string) {
   }
 
   const authState = { ...state, githubToken: resolvedGithubToken }
-  const response = await fetch(`${getGitHubApiBaseUrl()}/user`, {
+  const response = await copilotFetch(`${getGitHubApiBaseUrl()}/user`, {
     headers: githubUserHeaders(authState),
   })
 

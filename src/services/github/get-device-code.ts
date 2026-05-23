@@ -1,11 +1,12 @@
 import { getOauthAppConfig, getOauthUrls } from "~/lib/api-config"
 import { HTTPError } from "~/lib/error"
+import { copilotFetch } from "~/lib/copilot-fetch"
 
 export async function getDeviceCode(): Promise<DeviceCodeResponse> {
   const { clientId, headers, scope } = getOauthAppConfig()
   const { deviceCodeUrl } = getOauthUrls()
 
-  const response = await fetch(deviceCodeUrl, {
+  const response = await copilotFetch(deviceCodeUrl, {
     method: "POST",
     headers,
     body: JSON.stringify({
