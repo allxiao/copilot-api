@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 
 import { ipcMain, shell, BrowserWindow } from 'electron'
 
+import { getProxyConfig, setProxyConfig, type ProxyConfig } from '../../src/lib/config'
 import { normalizeApiKeys } from '../../src/lib/request-auth'
 import { PATHS } from '../../src/lib/paths'
 import { getDeviceCode, pollAccessToken, getGitHubUser, saveToken, readToken, clearToken, getCopilotAccountType } from './auth'
@@ -12,6 +13,7 @@ import type {
   DesktopSettings,
   ModelMappingsConfig,
   ProxySettings,
+  ProxySettingsConfig,
   ServerAuthInfo,
 } from '../src/types/ipc'
 
@@ -23,6 +25,8 @@ interface ConfigApiErrorResponse {
 
 type ServerAuthScope = 'default' | 'admin'
 
+const supportedProxyProtocols = new Set(['http:', 'https:', 'socks:', 'socks5:'])
+
 function normalizeApiKey(apiKey: unknown): string | null {
   if (typeof apiKey !== 'string') {
     return null
@@ -30,6 +34,63 @@ function normalizeApiKey(apiKey: unknown): string | null {
 
   const normalizedApiKey = apiKey.trim()
   return normalizedApiKey || null
+}
+
+function normalizeProxyConfig(proxy: ProxyConfig | undefined): ProxySettings {
+  if (typeof proxy === 'string') {
+    const proxyUrl = proxy.trim()
+    return {
+      enabled: proxyUrl.length > 0,
+      url: proxyUrl,
+    }
+  }
+
+  return {
+    enabled: proxy?.enabled === true,
+    url: proxy?.url?.trim() ?? '',
+  }
+}
+
+function validateProxySettings(proxy: ProxySettings): ProxySettings {
+  const nextProxy = {
+    enabled: proxy.enabled,
+    url: proxy.url.trim(),
+  }
+
+  if (!nextProxy.enabled) {
+    return nextProxy
+  }
+
+  if (!nextProxy.url) {
+    throw new Error('Proxy URL is required when proxy is enabled.')
+  }
+
+  let proxyUrl: URL
+  try {
+    proxyUrl = new URL(nextProxy.url)
+  } catch {
+    throw new Error('Proxy URL must be a valid URL.')
+  }
+
+  if (!supportedProxyProtocols.has(proxyUrl.protocol)) {
+    throw new Error('Proxy URL must use http, https, socks, or socks5.')
+  }
+
+  return nextProxy
+}
+
+function readProxyConfig(): ProxySettingsConfig {
+  return {
+    configPath: PATHS.CONFIG_PATH,
+    proxy: normalizeProxyConfig(getProxyConfig()),
+  }
+}
+
+function saveProxyConfig(proxy: ProxySettings): ProxySettingsConfig {
+  return {
+    configPath: PATHS.CONFIG_PATH,
+    proxy: normalizeProxyConfig(setProxyConfig(validateProxySettings(proxy))),
+  }
 }
 
 async function getServerAuthInfo(scope: ServerAuthScope = 'default'): Promise<ServerAuthInfo> {
@@ -222,6 +283,8 @@ export function registerIpcHandlers(
     }
   })
   ipcMain.handle('config:get-model-mappings', async () => fetchModelMappingsConfig())
+  ipcMain.handle('config:get-proxy', async () => readProxyConfig())
+  ipcMain.handle('config:save-proxy', async (_event, proxy: ProxySettings) => saveProxyConfig(proxy))
   ipcMain.handle('config:save-model-mappings', async (_event, modelMappings: Record<string, string>, proxy?: ProxySettings) => {
     await saveModelMappingsViaApi(modelMappings, proxy)
   })
